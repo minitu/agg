@@ -1,0 +1,5 @@
+mainmodule main {
+  mainchare Main {
+    entry Main(CkArgMsg*);
+  };
+};
