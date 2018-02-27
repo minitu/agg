@@ -1,5 +1,5 @@
 TESTOPTS ?= ++local
-CHARM_BASE ?= ~/charm
+CHARM_BASE ?= ../charm
 CHARMC = $(CHARM_BASE)/bin/charmc $(OPTS)
 OBJS = main.o
 
