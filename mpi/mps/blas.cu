@@ -12,29 +12,32 @@ __global__ void matmul(float* A, float* B, float* C, int N) {
 
   int ci = BLOCK_SIZE * blockIdx.x + ti;
   int cj = BLOCK_SIZE * blockIdx.y + tj;
-  float C_sub = 0;
 
-  int A_j = tj;
-  int B_i = ti;
+  if (ci < N && cj < N) {
+    float C_sub = 0.0f;
 
-  __shared__ float s_A[BLOCK_SIZE][BLOCK_SIZE];
-  __shared__ float s_B[BLOCK_SIZE][BLOCK_SIZE];
+    int A_j = tj;
+    int B_i = ti;
 
-  for (int l = 0; l < N / BLOCK_SIZE; l++) {
-    s_A[ti][tj] = A_MAT(ci, A_j, N);
-    s_B[ti][tj] = B_MAT(B_i, cj, N);
-    __syncthreads();
+    __shared__ float s_A[BLOCK_SIZE][BLOCK_SIZE];
+    __shared__ float s_B[BLOCK_SIZE][BLOCK_SIZE];
 
-    for (int q = 0; q < BLOCK_SIZE; q++) {
-      C_sub += s_A[ti][q] * s_B[q][tj];
+    for (int l = 0; l < (N + BLOCK_SIZE - 1) / BLOCK_SIZE; l++) {
+      s_A[ti][tj] = A_MAT(ci, A_j, N);
+      s_B[ti][tj] = B_MAT(B_i, cj, N);
+      __syncthreads();
+
+      for (int q = 0; q < BLOCK_SIZE; q++) {
+        C_sub += s_A[ti][q] * s_B[q][tj];
+      }
+
+      A_j += BLOCK_SIZE;
+      B_i += BLOCK_SIZE;
+      __syncthreads();
     }
 
-    A_j += BLOCK_SIZE;
-    B_i += BLOCK_SIZE;
-    __syncthreads();
+    C_MAT(ci, cj, N) = C_sub;
   }
-
-  C_MAT(ci, cj, N) = C_sub;
 }
 
 void cudaMatmul(float* h_A, float* h_B, float* h_C, float* d_A, float* d_B,

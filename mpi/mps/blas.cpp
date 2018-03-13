@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <iomanip>
 #include "common.h"
 
 extern void cudaMatmul(float*, float*, float*, float*, float*, float*, int,
@@ -18,7 +19,7 @@ void printMatrix(float* matrix, int N, char which, int rank) {
   std::cout << "[Rank " << rank << "] " << which << std::endl;
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
-      std::cout << matrix[i * N + j] << " ";
+      std::cout << std::fixed << std::setprecision(2) << matrix[i * N + j] << " ";
     }
     std::cout << std::endl;
   }
