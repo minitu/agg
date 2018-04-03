@@ -53,8 +53,11 @@ Main::Main(CkArgMsg* m) {
 
   // Warm Up
   for (int i = 0; i < 100; i++) {
-    //empty<<<numCores / numThreads, numThreads>>>();
+#if 0
+    empty<<<numCores / numThreads, numThreads>>>();
+#else
     empty<<<1,1>>>();
+#endif
   }
 
   cudaDeviceSynchronize();
@@ -64,7 +67,6 @@ Main::Main(CkArgMsg* m) {
     // 1, 10, 100, 1000, 10000  kernel launch(es)
     /*for (int j = 1; j < 100001; j *= 10)*/ {
 #if 0
-      cudaEventRecord(start);
       cudaEventRecord(start, streams[i]);
 #else
       cudaEventRecord(start, 0);
@@ -75,21 +77,16 @@ Main::Main(CkArgMsg* m) {
       for(int experiment = 0; experiment < numExperiments; experiment++) {
 #if 0
         empty<<<numCores / numThreads, numThreads, sMemSize, streams[i]>>>();
-        empty<<<numCores / numThreads, numThreads, sMemSize>>>();
-        empty<<<numCores / numThreads, numThreads>>>();
-        empty<<<1, 1, sMemSize, 0>>>();
 #else
         empty<<<numCores / numThreads, numThreads, sMemSize, 0>>>();
 #endif
       }
 #if 0
-      cudaEventRecord(stop);
       cudaEventRecord(stop, streams[i]);
 #else
       cudaEventRecord(stop, 0);
 #endif
 
-      //cudaDeviceSynchronize();
       cudaEventSynchronize(stop);
 
       cudaEventElapsedTime(&time, start, stop);
