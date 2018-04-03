@@ -1,5 +1,28 @@
 #include "main.h"
 
+// Tests
+// - sMemSize               - no effect
+// - 0 stream               - no effect
+// - synchronize            - no effect
+// - > 1 thread, and block  - no effect
+// - > 1 thread
+// - > 1 block
+// - non-default stream
+
+// TODO
+// - Implement multiple streams
+// - GPU Manager
+// - With data, without data
+
+// How to measure time?
+// events
+// CPU time
+// - clock()
+// - gettimeofday
+// - c++11
+// - clock_gettime
+// - cutTimer (deprecated?)
+
 __global__ void empty() {
 }
 
@@ -36,39 +59,20 @@ Main::Main(CkArgMsg* m) {
 
   cudaDeviceSynchronize();
 
-  // Should we measure each launch and sum or loop over?
-  // - loop
 
-  // Tests
-  // sMemSize   - no effect
-  // 0 stream   - no effect
-  // synchroize - no effect
-  // > 1 thread, and block - no effect
-  // > 1 thread
-  // > 1 block
-  // non-default stream
-
-  // GPU Manager
-  // With data, without data
   for (int i = 0; i < 1; i++) {
     // 1, 10, 100, 1000, 10000  kernel launch(es)
     /*for (int j = 1; j < 100001; j *= 10)*/ {
-      // Need to take averages
 #if 0
       cudaEventRecord(start);
       cudaEventRecord(start, streams[i]);
 #else
       cudaEventRecord(start, 0);
 #endif
+
+      // Should we measure each launch and sum or loop over? loop
+      // Need to take averages
       for(int experiment = 0; experiment < numExperiments; experiment++) {
-        // How to measure time?
-        // events
-        // CPU time
-        // - clock()
-        // - gettimeofday
-        // - c++11
-        // - clock_gettime
-        // - cutTimer (deprecated?)
 #if 0
         empty<<<numCores / numThreads, numThreads, sMemSize, streams[i]>>>();
         empty<<<numCores / numThreads, numThreads, sMemSize>>>();
