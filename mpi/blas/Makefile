@@ -7,10 +7,10 @@ OBJS=$(TARGET).o $(TARGET)cu.o
 $(TARGET): $(OBJS)
 	$(CC) -o $@ $(OBJS) -lmpich -lcublas
 
-$(TARGET).o: $(TARGET).cpp common.h
+$(TARGET).o: $(TARGET).cpp common.h params.h
 	$(CC) -c $<
 
-$(TARGET)cu.o: $(TARGET).cu common.h
+$(TARGET)cu.o: $(TARGET).cu common.h params.h
 	nvcc -o $@ -c $<
 
 test:

@@ -1,12 +1,15 @@
 #include <iostream>
 #include "common.h"
+#include "params.h"
 
 #define BLOCK_SIZE 16
 #define A_MAT(x,y,N) A[x * N + y]
 #define B_MAT(x,y,N) B[x * N + y]
 #define C_MAT(x,y,N) C[x * N + y]
 
-__global__ void matmul(float* A, float* B, float* C, int N) {
+extern Comp comp_type;
+
+__global__ void matmul(Real* A, Real* B, Real* C, int N) {
   int ti = threadIdx.x;
   int tj = threadIdx.y;
 
@@ -14,13 +17,13 @@ __global__ void matmul(float* A, float* B, float* C, int N) {
   int cj = BLOCK_SIZE * blockIdx.y + tj;
 
   if (ci < N && cj < N) {
-    float C_sub = 0.0f;
+    Real C_sub = 0.0f;
 
     int A_j = tj;
     int B_i = ti;
 
-    __shared__ float s_A[BLOCK_SIZE][BLOCK_SIZE];
-    __shared__ float s_B[BLOCK_SIZE][BLOCK_SIZE];
+    __shared__ Real s_A[BLOCK_SIZE][BLOCK_SIZE];
+    __shared__ Real s_B[BLOCK_SIZE][BLOCK_SIZE];
 
     for (int l = 0; l < (N + BLOCK_SIZE - 1) / BLOCK_SIZE; l++) {
       s_A[ti][tj] = A_MAT(ci, A_j, N);
@@ -40,32 +43,52 @@ __global__ void matmul(float* A, float* B, float* C, int N) {
   }
 }
 
-void cudaMatmul(float* h_A, float* h_B, float* h_C, float* d_A, float* d_B,
-    float* d_C, int N, int mem_size, cudaStream_t stream, cublasHandle_t handle,
-    bool use_cublas) {
-  if (!use_cublas) { // use simple matmul kernel
+void runCuda(Params* params, cudaStream_t stream, cublasHandle_t handle) {
+  Real* h_A = params->h_data[A];
+  Real* h_B = params->h_data[B];
+  Real* h_C = params->h_data[C];
+  Real* d_A = params->d_data[A];
+  Real* d_B = params->d_data[B];
+  Real* d_C = params->d_data[C];
+  int N = params->n_elems;
+  size_t size = params->mem_size;
+
+  if (!params->cublas) { // use simple handwritten kernel
     dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 dim_grid(ceil((float)N / dim_block.x), ceil((float)N / dim_block.y));
+    dim3 dim_grid(ceil((Real)N / dim_block.x), ceil((Real)N / dim_block.y));
 
-    cudaMemcpyAsync(d_A, h_A, mem_size, cudaMemcpyHostToDevice, stream);
-    cudaMemcpyAsync(d_B, h_B, mem_size, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(d_A, h_A, size, cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(d_B, h_B, size, cudaMemcpyHostToDevice, stream);
 
-    matmul<<<dim_grid, dim_block, 0, stream>>>(d_A, d_B, d_C, N);
-
-    cudaMemcpyAsync(h_C, d_C, mem_size, cudaMemcpyDeviceToHost, stream);
+    switch (params->type) {
+      case Comp::DOT:
+        // TODO
+        break;
+      case Comp::GEMM:
+        matmul<<<dim_grid, dim_block, 0, stream>>>(d_A, d_B, d_C, N);
+        cudaMemcpyAsync(h_C, d_C, size, cudaMemcpyDeviceToHost, stream);
+        break;
+    }
   }
   else { // use cuBLAS
-    float alpha = 1.0f;
-    float beta = 0.0f;
+    switch (params->type) {
+      case Comp::DOT:
+        // TODO
+        break;
+      case Comp::GEMM:
+        Real alpha = 1.0f;
+        Real beta = 0.0f;
 
-    cublasSetMatrixAsync(N, N, sizeof(float), h_A, N, d_A, N, stream);
-    cublasSetMatrixAsync(N, N, sizeof(float), h_B, N, d_B, N, stream);
+        cublasSetMatrixAsync(N, N, sizeof(Real), h_A, N, d_A, N, stream);
+        cublasSetMatrixAsync(N, N, sizeof(Real), h_B, N, d_B, N, stream);
 
-    // need to switch A and B due to how cuBLAS sees arrays in Fortran style
-    cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, N, N, &alpha, d_B, N, d_A,
-        N, &beta, d_C, N);
+        // need to switch A and B due to how cuBLAS sees arrays in Fortran style
+        cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, N, N, &alpha, d_B, N,
+            d_A, N, &beta, d_C, N);
 
-    cublasGetMatrixAsync(N, N, sizeof(float), d_C, N, h_C, N, stream);
+        cublasGetMatrixAsync(N, N, sizeof(Real), d_C, N, h_C, N, stream);
+        break;
+    }
   }
 
   cudaStreamSynchronize(stream);
