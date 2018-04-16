@@ -1,9 +1,11 @@
 #include <mpi.h>
 #include <cuda_runtime.h>
 #include <cstdlib>
+#include <unistd.h>
 #include <ctime>
 #include <iostream>
 #include <iomanip>
+#include <string>
 #include "common.h"
 
 extern void cudaMatmul(float*, float*, float*, float*, float*, float*, int,
@@ -25,17 +27,41 @@ void printMatrix(float* matrix, int N, char which, int rank) {
   }
 }
 
+enum class Comp { DOT, GEMM };
+
+Comp comp_type = Comp::DOT;
+
 int main(int argc, char** argv)
 {
-  // Matrix size (one dimension)
+  // Number of elements
+  // Dot product: vector size
+  // Matrix product: matrix size (one dimension)
   int N = 8;
+  // Use cuBLAS?
   bool use_cublas = false;
 
   // Handle command line parameters
-  if (argc >= 2) {
-    N = atoi(argv[1]);
-    if (argc >= 3) {
-      use_cublas = (atoi(argv[2]) != 0) ? true : false;
+  int c;
+  std::string type;
+  while ((c = getopt(argc, argv, "t:n:c")) != -1) {
+    switch (c) {
+      case 't':
+        type = optarg;
+        if (type.compare("dot") == 0)
+          comp_type = Comp::DOT;
+        else if (type.compare("gemm") == 0)
+          comp_type = Comp::GEMM;
+        else {
+          std::cout << "Invalid computation type!" << std::endl;
+          return -1;
+        }
+        break;
+      case 'n':
+        N = atoi(optarg);
+        break;
+      case 'c':
+        use_cublas = true;
+        break;
     }
   }
 
@@ -44,13 +70,26 @@ int main(int argc, char** argv)
   int rank, tag = 99;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Allocate matrices
-  float *h_mat[3];
-  float *d_mat[3];
-  int mem_size = N * N * sizeof(float);
+#if DEBUG
+  // Print MPI ranks
+  std::cout << "MPI rank " << rank << " created" << std::endl;
+#endif
+
+  // Allocate memory for data
+  float *h_data[3];
+  float *d_data[3];
+  int element_cnt;
+  int mem_size;
+  if (comp_type == Comp::DOT) {
+    element_cnt = N; // vector
+  }
+  else if (comp_type == Comp::GEMM) {
+    element_cnt = N * N; // matrix
+  }
+  mem_size = element_cnt * sizeof(float);
   for (int i = 0; i < 3; i++) {
-    cudaMallocHost(&h_mat[i], mem_size);
-    cudaMalloc(&d_mat[i], mem_size);
+    cudaMallocHost(&h_data[i], mem_size);
+    cudaMalloc(&d_data[i], mem_size);
   }
 
   // Create CUDA stream
@@ -64,20 +103,31 @@ int main(int argc, char** argv)
     cublasSetStream(handle, stream);
   }
 
-  // Randomize entries of matrices
+  // Randomize input data
   srand(time(NULL));
   for (int i = 0; i < 2; i++) {
-    randomInit(h_mat[i], N * N);
+    randomInit(h_data[i], element_cnt);
   }
 
   // Invoke data transfers and kernel
-  cudaMatmul(h_mat[0], h_mat[1], h_mat[2], d_mat[0], d_mat[1], d_mat[2], N, mem_size, stream, handle, use_cublas);
+  if (comp_type == Comp::DOT) {
+    // TODO
+  }
+  else if (comp_type == Comp::GEMM) {
+    cudaMatmul(h_data[0], h_data[1], h_data[2], d_data[0], d_data[1], d_data[2],
+        N, mem_size, stream, handle, use_cublas);
+  }
 
 #if DEBUG
   // Validate results
-  printMatrix(h_mat[0], N, 'A', rank);
-  printMatrix(h_mat[1], N, 'B', rank);
-  printMatrix(h_mat[2], N, 'C', rank);
+  if (comp_type == Comp::DOT) {
+    // TODO
+  }
+  else if (comp_type == Comp::GEMM) {
+    printMatrix(h_data[0], N, 'A', rank);
+    printMatrix(h_data[1], N, 'B', rank);
+    printMatrix(h_data[2], N, 'C', rank);
+  }
 #endif
 
   // Destroy cuBLAS handle
@@ -88,10 +138,10 @@ int main(int argc, char** argv)
   // Destroy CUDA stream
   cudaStreamDestroy(stream);
 
-  // Deallocate matrices
+  // Deallocate memory
   for (int i = 0; i < 3; i++) {
-    cudaFreeHost(h_mat[i]);
-    cudaFree(d_mat[i]);
+    cudaFreeHost(h_data[i]);
+    cudaFree(d_data[i]);
   }
 
   // Finish MPI

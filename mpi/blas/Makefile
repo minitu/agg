@@ -1,5 +1,6 @@
 # For OLCF Titan
-CC=CC
+CFLAGS=-std=c++11
+CC=CC $(CFLAGS)
 TARGET=blas
 OBJS=$(TARGET).o $(TARGET)cu.o
 
