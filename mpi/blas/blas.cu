@@ -7,8 +7,6 @@
 #define B_MAT(x,y,N) B[x * N + y]
 #define C_MAT(x,y,N) C[x * N + y]
 
-extern Comp comp_type;
-
 __global__ void matmul(Real* A, Real* B, Real* C, int N) {
   int ti = threadIdx.x;
   int tj = threadIdx.y;
@@ -44,16 +42,18 @@ __global__ void matmul(Real* A, Real* B, Real* C, int N) {
 }
 
 void runCuda(Params* params, cudaStream_t stream, cublasHandle_t handle) {
-  Real* h_A = params->h_data[A];
-  Real* h_B = params->h_data[B];
-  Real* h_C = params->h_data[C];
-  Real* d_A = params->d_data[A];
-  Real* d_B = params->d_data[B];
-  Real* d_C = params->d_data[C];
+  // Unpack parameters
+  Real* h_A = params->h_data[0];
+  Real* h_B = params->h_data[1];
+  Real* h_C = params->h_data[2];
+  Real* d_A = params->d_data[0];
+  Real* d_B = params->d_data[1];
+  Real* d_C = params->d_data[2];
   int N = params->n_elems;
   size_t size = params->mem_size;
 
-  if (!params->cublas) { // use simple handwritten kernel
+  if (!params->cublas) {
+    // Use simple handwritten kernel
     dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
     dim3 dim_grid(ceil((Real)N / dim_block.x), ceil((Real)N / dim_block.y));
 
@@ -70,7 +70,8 @@ void runCuda(Params* params, cudaStream_t stream, cublasHandle_t handle) {
         break;
     }
   }
-  else { // use cuBLAS
+  else {
+    // Use the cuBLAS library
     switch (params->type) {
       case Comp::DOT:
         // TODO

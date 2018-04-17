@@ -39,6 +39,9 @@ struct Params {
         }
 
         break;
+      default:
+        std::cout << "Wrong type, malloc failed" << std::endl;
+        break;
     }
   }
 
