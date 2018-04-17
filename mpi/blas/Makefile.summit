@@ -1,12 +1,12 @@
-# For OLCF Titan
+# For OLCF Summitdev
 CFLAGS=-std=c++11
-CC=CC $(CFLAGS)
+CC=mpiCC $(CFLAGS)
 NVCC=nvcc $(CFLAGS)
 TARGET=blas
 OBJS=$(TARGET).o $(TARGET)cu.o params.o
 
 $(TARGET): $(OBJS)
-	$(CC) -o $@ $(OBJS) -lmpich -lcublas
+	$(CC) -o $@ $(OBJS) -lcublas -lcudart -L /sw/summitdev/cuda/9.0.69/lib64
 
 $(TARGET).o: $(TARGET).cpp common.h params.h comp.h
 	$(CC) -c $<
@@ -18,7 +18,7 @@ params.o: params.cpp params.h
 	$(CC) -c $<
 
 test:
-	aprun -n 4 ./$(TARGET)
+	jsrun -n 4 ./$(TARGET)
 
 clean:
 	rm -f $(TARGET) $(OBJS)

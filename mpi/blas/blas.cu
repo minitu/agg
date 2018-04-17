@@ -1,6 +1,7 @@
 #include <iostream>
 #include "common.h"
 #include "params.h"
+#include "comp.h"
 
 #define BLOCK_SIZE 16
 #define A_MAT(x,y,N) A[x * N + y]
@@ -41,16 +42,16 @@ __global__ void matmul(Real* A, Real* B, Real* C, int N) {
   }
 }
 
-void runCuda(Params* params, cudaStream_t stream, cublasHandle_t handle) {
-  // Unpack parameters
-  Real* h_A = params->h_data[0];
-  Real* h_B = params->h_data[1];
-  Real* h_C = params->h_data[2];
-  Real* d_A = params->d_data[0];
-  Real* d_B = params->d_data[1];
-  Real* d_C = params->d_data[2];
-  int N = params->n_elems;
-  size_t size = params->mem_size;
+void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t handle) {
+  // Unpack Comp
+  Real* h_A = comp->h_A;
+  Real* h_B = comp->h_B;
+  Real* h_C = comp->h_C;
+  Real* d_A = comp->d_A;
+  Real* d_B = comp->d_B;
+  Real* d_C = comp->d_C;
+  int N = comp->N;
+  size_t size = comp->mem_size;
 
   if (!params->cublas) {
     // Use simple handwritten kernel
@@ -61,10 +62,10 @@ void runCuda(Params* params, cudaStream_t stream, cublasHandle_t handle) {
     cudaMemcpyAsync(d_B, h_B, size, cudaMemcpyHostToDevice, stream);
 
     switch (params->type) {
-      case Comp::DOT:
+      case CompType::DOT:
         // TODO
         break;
-      case Comp::GEMM:
+      case CompType::GEMM:
         matmul<<<dim_grid, dim_block, 0, stream>>>(d_A, d_B, d_C, N);
         cudaMemcpyAsync(h_C, d_C, size, cudaMemcpyDeviceToHost, stream);
         break;
@@ -73,10 +74,10 @@ void runCuda(Params* params, cudaStream_t stream, cublasHandle_t handle) {
   else {
     // Use the cuBLAS library
     switch (params->type) {
-      case Comp::DOT:
+      case CompType::DOT:
         // TODO
         break;
-      case Comp::GEMM:
+      case CompType::GEMM:
         Real alpha = 1.0f;
         Real beta = 0.0f;
 
