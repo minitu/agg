@@ -63,7 +63,8 @@ struct Comp {
   void randomize(Real* data, int n) {
     srand(time(NULL));
     for (int i = 0; i < n; i++) {
-      data[i] = rand() / (Real)RAND_MAX;
+      data[i] = 1.0;
+      //data[i] = rand() / (Real)RAND_MAX;
     }
   }
 
@@ -88,11 +89,11 @@ struct Comp {
   }
 
   void print(int rank) {
-    std::cout << "[Rank " << rank << "]" << 'A' << std::endl;
+    std::cout << "[Rank " << rank << "] " << 'A' << std::endl;
       printOne(h_A);
-    std::cout << "[Rank " << rank << "]" << 'B' << std::endl;
+    std::cout << "[Rank " << rank << "] " << 'B' << std::endl;
       printOne(h_B);
-    std::cout << "[Rank " << rank << "]" << 'C' << std::endl;
+    std::cout << "[Rank " << rank << "] " << 'C' << std::endl;
     if (type == CompType::DOT) {
       std::cout << std::fixed << std::setprecision(2) << h_C[0] << std::endl;
     }

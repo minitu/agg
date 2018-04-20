@@ -3,10 +3,26 @@
 #include "params.h"
 #include "comp.h"
 
+#define N_PER_THREAD 16
 #define BLOCK_SIZE 16
 #define A_MAT(x,y,N) A[x * N + y]
 #define B_MAT(x,y,N) B[x * N + y]
 #define C_MAT(x,y,N) C[x * N + y]
+
+__global__ void dotp(Real* A, Real* B, Real* C, int N) {
+  int gi = BLOCK_SIZE * blockIdx.x + threadIdx.x;
+  int first_idx = gi * N_PER_THREAD;
+  int last_idx = (gi + 1) * N_PER_THREAD - 1;
+
+  if (first_idx < N) {
+    Real sum = (Real)0.0;
+    for (int i = first_idx; i <= last_idx && i < N; i++) {
+      sum += A[i] * B[i];
+    }
+
+    atomicAdd(C, sum);
+  }
+}
 
 __global__ void matmul(Real* A, Real* B, Real* C, int N) {
   int ti = threadIdx.x;
@@ -55,19 +71,33 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
 
   if (!params->cublas) {
     // Use simple handwritten kernel
-    dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 dim_grid(ceil((Real)N / dim_block.x), ceil((Real)N / dim_block.y));
-
-    cudaMemcpyAsync(d_A, h_A, size, cudaMemcpyHostToDevice, stream);
-    cudaMemcpyAsync(d_B, h_B, size, cudaMemcpyHostToDevice, stream);
+    dim3 dim_block;
+    dim3 dim_grid;
 
     switch (params->type) {
       case CompType::DOT:
-        // TODO
+        dim_block = dim3(BLOCK_SIZE * BLOCK_SIZE);
+        dim_grid = dim3(ceil((Real)N / (dim_block.x * N_PER_THREAD)));
+
+        cudaMemcpyAsync(d_A, h_A, size, cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_B, h_B, size, cudaMemcpyHostToDevice, stream);
+
+        dotp<<<dim_grid, dim_block, 0, stream>>>(d_A, d_B, d_C, N);
+
+        cudaMemcpyAsync(h_C, d_C, sizeof(Real), cudaMemcpyDeviceToHost, stream);
+
         break;
       case CompType::GEMM:
+        dim_block = dim3(BLOCK_SIZE, BLOCK_SIZE);
+        dim_grid = dim3(ceil((Real)N / dim_block.x), ceil((Real)N / dim_block.y));
+
+        cudaMemcpyAsync(d_A, h_A, size, cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_B, h_B, size, cudaMemcpyHostToDevice, stream);
+
         matmul<<<dim_grid, dim_block, 0, stream>>>(d_A, d_B, d_C, N);
+
         cudaMemcpyAsync(h_C, d_C, size, cudaMemcpyDeviceToHost, stream);
+
         break;
     }
   }
@@ -75,7 +105,11 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
     // Use the cuBLAS library
     switch (params->type) {
       case CompType::DOT:
-        // TODO
+        cublasSetVectorAsync(N, sizeof(Real), h_A, 1, d_A, 1, stream);
+        cublasSetVectorAsync(N, sizeof(Real), h_B, 1, d_B, 1, stream);
+
+        cublasSdot(handle, N, d_A, 1, d_B, 1, h_C);
+
         break;
       case CompType::GEMM:
         Real alpha = 1.0f;
