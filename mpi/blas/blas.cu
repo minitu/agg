@@ -10,7 +10,7 @@
 #define C_MAT(x,y,N) C[x * N + y]
 
 __global__ void dotp(Real* A, Real* B, Real* C, int N) {
-  int gi = BLOCK_SIZE * blockIdx.x + threadIdx.x;
+  int gi = (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x + threadIdx.x;
   int first_idx = gi * N_PER_THREAD;
   int last_idx = (gi + 1) * N_PER_THREAD - 1;
 
