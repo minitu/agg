@@ -36,10 +36,6 @@ struct Comp {
         cudaMallocHost(&h_C, sizeof(Real));
         cudaMalloc(&d_C, sizeof(Real));
 
-        // initialize input
-        randomize(h_A, N);
-        randomize(h_B, N);
-
         // initialize reduction value
         cudaMemset(d_C, 0, sizeof(Real));
         break;
@@ -54,12 +50,25 @@ struct Comp {
         cudaMalloc(&d_B, mem_size);
         cudaMalloc(&d_C, mem_size);
 
-        // initialize input
+        // initialize output matrix
+        cudaMemset(d_C, 0, mem_size);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void randomInit() {
+    switch (type) {
+      case CompType::DOT:
+        randomize(h_A, N);
+        randomize(h_B, N);
+
+        break;
+      case CompType::GEMM:
         randomize(h_A, N * N);
         randomize(h_B, N * N);
 
-        // initialize output matrix
-        cudaMemset(d_C, 0, mem_size);
         break;
       default:
         break;
@@ -94,11 +103,11 @@ struct Comp {
   }
 
   void print(int rank) {
-    std::cout << "[Rank " << rank << "] " << 'A' << std::endl;
+    std::cout << "[Rank " << rank << "] " << "A" << std::endl;
       printOne(h_A);
-    std::cout << "[Rank " << rank << "] " << 'B' << std::endl;
+    std::cout << "\n[Rank " << rank << "] " << "B" << std::endl;
       printOne(h_B);
-    std::cout << "[Rank " << rank << "] " << 'C' << std::endl;
+    std::cout << "\n[Rank " << rank << "] " << "C" << std::endl;
     if (type == CompType::DOT) {
       std::cout << std::fixed << std::setprecision(2) << h_C[0] << std::endl;
     }

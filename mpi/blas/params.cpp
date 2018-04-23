@@ -39,17 +39,18 @@ Params::Params(int argc, char** argv) {
   }
 
   // Print configuration
-  std::cout << "[Config]\n" << "Computation: ";
+  std::cout << "\n[Config]\n" << "Computation: ";
   switch (type) {
     case CompType::DOT:
-      std::cout << "vector dot product";
+      std::cout << "vector dot product (DOT)";
       break;
     case CompType::GEMM:
-      std::cout << "matrix multiplication";
+      std::cout << "matrix multiplication (GEMM)";
       break;
     default:
       break;
   }
   std::cout << "\n" << "Number of elements per dimension: " << n_per_dim;
-  std::cout << "\n" << "Using cuBLAS: " << std::boolalpha << cublas << std::endl;
+  std::cout << "\n" << "Using cuBLAS: " << std::boolalpha << cublas << "\n"
+    << std::endl;
 }

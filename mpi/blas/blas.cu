@@ -129,5 +129,6 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
 
   cudaStreamSynchronize(stream);
 
-  std::cout << cudaGetErrorString(cudaGetLastError()) << std::endl;
+  std::cout << "CUDA: " << cudaGetErrorString(cudaGetLastError())
+    << "\n" << std::endl;
 }

@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <cstdlib>
 #include <iostream>
+#include <chrono>
 #include "common.h"
 #include "params.h"
 #include "comp.h"
@@ -10,6 +11,9 @@ extern void runCuda(Comp*, Params*, cudaStream_t, cublasHandle_t);
 
 int main(int argc, char** argv)
 {
+  // Start global timer (from before MPI_Init to after MPI_Finalize)
+  auto global_start = std::chrono::system_clock::now();
+
   // Initialize MPI
   MPI_Init(&argc, &argv);
   int rank, tag = 99;
@@ -35,6 +39,9 @@ int main(int argc, char** argv)
     cublasSetStream(handle, stream);
   }
 
+  // Randomize input values
+  comp->randomInit();
+
   // Invoke data transfers and kernel
   runCuda(comp, params, stream, handle);
 
@@ -57,5 +64,13 @@ int main(int argc, char** argv)
 
   // Finish MPI
   MPI_Finalize();
+
+  // End global timer
+  auto global_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> global_duration = global_end - global_start;
+
+  std::cout << "\n[Timers]\n" << "Global: " << global_duration.count() << "s\n"
+    << std::endl;
+
   return 0;
 }
