@@ -69,8 +69,7 @@ struct Comp {
   void randomize(Real* data, int n) {
     srand(time(NULL));
     for (int i = 0; i < n; i++) {
-      data[i] = 1.0;
-      //data[i] = rand() / (Real)RAND_MAX;
+      data[i] = rand() / (Real)RAND_MAX;
     }
   }
 
