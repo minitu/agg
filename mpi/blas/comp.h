@@ -36,9 +36,12 @@ struct Comp {
         cudaMallocHost(&h_C, sizeof(Real));
         cudaMalloc(&d_C, sizeof(Real));
 
-        // randomize input
+        // initialize input
         randomize(h_A, N);
         randomize(h_B, N);
+
+        // initialize reduction value
+        cudaMemset(d_C, 0, sizeof(Real));
         break;
       case CompType::GEMM:
         mem_size = N * N * sizeof(Real);
@@ -51,9 +54,12 @@ struct Comp {
         cudaMalloc(&d_B, mem_size);
         cudaMalloc(&d_C, mem_size);
 
-        // randomize input
+        // initialize input
         randomize(h_A, N * N);
         randomize(h_B, N * N);
+
+        // initialize output matrix
+        cudaMemset(d_C, 0, mem_size);
         break;
       default:
         break;
