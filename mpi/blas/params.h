@@ -4,8 +4,9 @@
 #include "common.h"
 
 struct Params {
-  CompType type; // which computation?
+  CompType type; // which computation type
   int n_per_dim; // number of elements per dimension
+  bool agg; // use kernel aggregation?
   bool cublas; // use cuBLAS?
 
   Params(int argc, char** argv);

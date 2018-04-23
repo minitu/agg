@@ -16,17 +16,19 @@ int main(int argc, char** argv)
 
   // Initialize MPI
   MPI_Init(&argc, &argv);
-  int rank, tag = 99;
+  int rank, tag = 99, n_ranks;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &n_ranks);
 
 #if DEBUG
   // Print MPI ranks
-  std::cout << "[MPI] rank " << rank << " created" << std::endl;
+  std::cout << "[MPI] rank " << rank << "/" << n_ranks << " created" <<
+    std::endl;
 #endif
 
   // Process parameters and create computation object
   Params* params = new Params(argc, argv);
-  Comp* comp = new Comp(params);
+  Comp* comp = new Comp(params, rank, n_ranks);
 
   // Create CUDA stream
   cudaStream_t stream;
@@ -42,8 +44,40 @@ int main(int argc, char** argv)
   // Randomize input values
   comp->randomInit();
 
-  // Invoke data transfers and kernel
-  runCuda(comp, params, stream, handle);
+  // Perform communication and computation
+  if (comp->type == CompType::DOT_GLOBAL) {
+    if (!(comp->agg)) {
+      // Offload each rank independently
+      runCuda(comp, params, stream, handle);
+
+      // Reduce resulting values to get final value
+      // FIXME MPI_FLOAT
+      Real reduced;
+      MPI_Reduce(comp->h_C, &reduced, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+#if DEBUG
+      if (rank == 0)
+        std::cout << "Result: " << reduced << std::endl;
+#endif
+    }
+    else {
+      // Gather input data
+      // FIXME MPI_FLOAT
+      MPI_Gather(comp->h_A, comp->N, MPI_FLOAT, comp->h_GA, comp->N, MPI_FLOAT,
+          0, MPI_COMM_WORLD);
+      MPI_Gather(comp->h_B, comp->N, MPI_FLOAT, comp->h_GB, comp->N, MPI_FLOAT,
+          0, MPI_COMM_WORLD);
+
+      // Offload as one big kernel
+      if (rank == 0) {
+        runCuda(comp, params, stream, handle);
+
+        std::cout << "Result: " << *(comp->h_GC) << std::endl;
+      }
+    }
+  }
+  else if (comp->type == CompType::DOT_LOCAL) {
+    // TODO
+  }
 
 #if DEBUG
   // Validate results

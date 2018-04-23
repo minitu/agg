@@ -8,7 +8,7 @@
 // Computation type
 // 1. Vector dot product
 // 2. Matrix multiplication
-enum class CompType { DOT, GEMM };
+enum class CompType { DOT_LOCAL, DOT_GLOBAL, GEMM_LOCAL, GEMM_GLOBAL };
 
 // Float or double?
 // TODO make this a runtime parameter

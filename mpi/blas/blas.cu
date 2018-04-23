@@ -59,15 +59,36 @@ __global__ void matmul(Real* A, Real* B, Real* C, int N) {
 }
 
 void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t handle) {
+  Real* h_A;
+  Real* h_B;
+  Real* h_C;
+  Real* d_A;
+  Real* d_B;
+  Real* d_C;
+  int N;
+  size_t size;
+
   // Unpack Comp
-  Real* h_A = comp->h_A;
-  Real* h_B = comp->h_B;
-  Real* h_C = comp->h_C;
-  Real* d_A = comp->d_A;
-  Real* d_B = comp->d_B;
-  Real* d_C = comp->d_C;
-  int N = comp->N;
-  size_t size = comp->mem_size;
+  if (!comp->agg) {
+    h_A = comp->h_A;
+    h_B = comp->h_B;
+    h_C = comp->h_C;
+    d_A = comp->d_A;
+    d_B = comp->d_B;
+    d_C = comp->d_C;
+    N = comp->N;
+    size = comp->mem_size;
+  }
+  else {
+    h_A = comp->h_GA;
+    h_B = comp->h_GB;
+    h_C = comp->h_GC;
+    d_A = comp->d_GA;
+    d_B = comp->d_GB;
+    d_C = comp->d_GC;
+    N = comp->N * comp->n_ranks;
+    size = comp->mem_size * comp->n_ranks;
+  }
 
   if (!params->cublas) {
     // Use simple handwritten kernel
@@ -75,7 +96,7 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
     dim3 dim_grid;
 
     switch (params->type) {
-      case CompType::DOT:
+      case CompType::DOT_GLOBAL:
         dim_block = dim3(BLOCK_SIZE * BLOCK_SIZE);
         dim_grid = dim3(ceil((Real)N / (dim_block.x * N_PER_THREAD)));
 
@@ -87,7 +108,10 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
         cudaMemcpyAsync(h_C, d_C, sizeof(Real), cudaMemcpyDeviceToHost, stream);
 
         break;
-      case CompType::GEMM:
+      // TODO DOT_LOCAL
+      case CompType::GEMM_GLOBAL:
+      case CompType::GEMM_LOCAL:
+        // TODO
         dim_block = dim3(BLOCK_SIZE, BLOCK_SIZE);
         dim_grid = dim3(ceil((Real)N / dim_block.x), ceil((Real)N / dim_block.y));
 
@@ -104,14 +128,17 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
   else {
     // Use the cuBLAS library
     switch (params->type) {
-      case CompType::DOT:
+      case CompType::DOT_GLOBAL:
+      case CompType::DOT_LOCAL:
         cublasSetVectorAsync(N, sizeof(Real), h_A, 1, d_A, 1, stream);
         cublasSetVectorAsync(N, sizeof(Real), h_B, 1, d_B, 1, stream);
 
         cublasSdot(handle, N, d_A, 1, d_B, 1, h_C);
 
         break;
-      case CompType::GEMM:
+      case CompType::GEMM_GLOBAL:
+      case CompType::GEMM_LOCAL:
+        // TODO
         Real alpha = 1.0f;
         Real beta = 0.0f;
 
