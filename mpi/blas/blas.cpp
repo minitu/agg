@@ -45,50 +45,62 @@ int main(int argc, char** argv)
   // Randomize input values
   comp->randomInit();
 
-  // Start timer (only for communication and computation)
-  auto com_start = std::chrono::system_clock::now();
+  // Timers for MPI communication and CUDA computation
+  std::chrono::time_point<std::chrono::system_clock> mpi_start;
+  std::chrono::time_point<std::chrono::system_clock> mpi_end;
+  std::chrono::time_point<std::chrono::system_clock> cuda_start;
+  std::chrono::time_point<std::chrono::system_clock> cuda_end;
 
   // Perform communication and computation
   if (comp->type == CompType::DOT_GLOBAL) {
     if (!(comp->agg)) {
       // Offload each rank independently
+      cuda_start = std::chrono::system_clock::now();
       runCuda(comp, params, stream, handle, rank);
+      cuda_end = std::chrono::system_clock::now();
 
       // Reduce resulting values to get final value
       // FIXME MPI_FLOAT
       Real reduced;
+      mpi_start = std::chrono::system_clock::now();
       MPI_Reduce(comp->h_C, &reduced, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+      mpi_end = std::chrono::system_clock::now();
+
       if (rank == 0)
         std::cout << "Result: " << std::fixed << std::setprecision(2)
-          << reduced << std::endl;
+          << reduced << "\n" << std::endl;
     }
     else {
       // Gather input data
       // FIXME MPI_FLOAT
+      mpi_start = std::chrono::system_clock::now();
       MPI_Gather(comp->h_A, comp->N, MPI_FLOAT, comp->h_GA, comp->N, MPI_FLOAT,
           0, MPI_COMM_WORLD);
       MPI_Gather(comp->h_B, comp->N, MPI_FLOAT, comp->h_GB, comp->N, MPI_FLOAT,
           0, MPI_COMM_WORLD);
+      mpi_end = std::chrono::system_clock::now();
 
       // Offload as one big kernel
-      if (rank == 0) {
+      cuda_start = std::chrono::system_clock::now();
+      if (rank == 0)
         runCuda(comp, params, stream, handle, rank);
+      cuda_end = std::chrono::system_clock::now();
 
+      if (rank == 0)
         std::cout << "Result: " << std::fixed << std::setprecision(2)
           << *(comp->h_GC) << "\n" << std::endl;
-      }
     }
   }
   else if (comp->type == CompType::DOT_LOCAL) {
     // TODO
   }
 
-  // End timer
-  auto com_end = std::chrono::system_clock::now();
-  std::chrono::duration<double> com_duration = com_end - com_start;
-
+  // Print timings
+  std::chrono::duration<double> mpi_duration = mpi_end - mpi_start;
+  std::chrono::duration<double> cuda_duration = cuda_end - cuda_start;
   if (rank == 0) {
-    std::cout << "[Timer] Com: " << com_duration.count() << "s" << std::endl;
+    std::cout << "[Timer] MPI: " << mpi_duration.count() << "s CUDA: "
+      << cuda_duration.count() << "s" << std::endl;
   }
 
 #if DEBUG
