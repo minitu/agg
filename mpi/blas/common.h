@@ -3,7 +3,7 @@
 
 #include "cublas_v2.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 // Computation type
 // 1. Vector dot product

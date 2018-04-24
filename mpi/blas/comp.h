@@ -111,7 +111,8 @@ struct Comp {
   void randomize(Real* data, int n) {
     srand(time(NULL));
     for (int i = 0; i < n; i++) {
-      data[i] = rand() / (Real)RAND_MAX;
+      data[i] = 1.0f;
+      //data[i] = rand() / (Real)RAND_MAX;
     }
   }
 

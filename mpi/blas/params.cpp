@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string>
 
-Params::Params(int argc, char** argv) {
+Params::Params(int argc, char** argv, int rank) {
   // Default settings
   type = CompType::DOT_GLOBAL;
   n_per_dim = 8;
@@ -22,7 +22,8 @@ Params::Params(int argc, char** argv) {
         else if (type_string.compare("gemm") == 0)
           type = CompType::GEMM_GLOBAL;
         else {
-          std::cout << "Invalid computation type!" << std::endl;
+          if (rank == 0)
+            std::cout << "Invalid computation type!" << std::endl;
         }
         break;
       case 'n':
@@ -35,28 +36,33 @@ Params::Params(int argc, char** argv) {
         cublas = true;
         break;
       default:
-        std::cout << "Usage:\n" <<
-          "\t-t {dot, gemm}: vector dot product or matrix multiplication\n" <<
-          "\t-n N: number of elements per dimension\n" <<
-          "\t-a: use kernel aggregation\n" <<
-          "\t-c: use cuBLAS\n" << std::endl;
+        if (rank == 0) {
+          std::cout << "Usage:\n" <<
+            "\t-t {dot, gemm}: vector dot product or matrix multiplication\n" <<
+            "\t-n N: number of elements per dimension\n" <<
+            "\t-a: use kernel aggregation\n" <<
+            "\t-c: use cuBLAS\n" << std::endl;
+        }
+        break;
     }
   }
 
   // Print configuration
-  std::cout << "\n[Config]\n" << "Computation: ";
-  switch (type) {
-    case CompType::DOT_GLOBAL:
-      std::cout << "vector dot product (DOT)";
-      break;
-    case CompType::GEMM_GLOBAL:
-      std::cout << "matrix multiplication (GEMM)";
-      break;
-    default:
-      break;
+  if (rank == 0) {
+    std::cout << "\n[Config]\n" << "Computation: ";
+    switch (type) {
+      case CompType::DOT_GLOBAL:
+        std::cout << "vector dot product (DOT)";
+        break;
+      case CompType::GEMM_GLOBAL:
+        std::cout << "matrix multiplication (GEMM)";
+        break;
+      default:
+        break;
+    }
+    std::cout << "\n" << "Number of elements per dimension: " << n_per_dim;
+    std::cout << "\n" << "Using kernel aggregation: " << std::boolalpha << agg;
+    std::cout << "\n" << "Using cuBLAS: " << std::boolalpha << cublas << "\n"
+      << std::endl;
   }
-  std::cout << "\n" << "Number of elements per dimension: " << n_per_dim;
-  std::cout << "\n" << "Using kernel aggregation: " << std::boolalpha << agg;
-  std::cout << "\n" << "Using cuBLAS: " << std::boolalpha << cublas << "\n"
-    << std::endl;
 }

@@ -9,7 +9,7 @@ struct Params {
   bool agg; // use kernel aggregation?
   bool cublas; // use cuBLAS?
 
-  Params(int argc, char** argv);
+  Params(int argc, char** argv, int rank);
 };
 
 #endif // BLAS_PARAMS_H_

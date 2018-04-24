@@ -58,7 +58,8 @@ __global__ void matmul(Real* A, Real* B, Real* C, int N) {
   }
 }
 
-void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t handle) {
+void runCuda(Comp* comp, Params* params, cudaStream_t stream,
+    cublasHandle_t handle, int rank) {
   Real* h_A;
   Real* h_B;
   Real* h_C;
@@ -156,6 +157,8 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream, cublasHandle_t han
 
   cudaStreamSynchronize(stream);
 
-  std::cout << "CUDA: " << cudaGetErrorString(cudaGetLastError())
-    << "\n" << std::endl;
+#if DEBUG
+  std::cout << "[MPI " << rank << "] CUDA: "
+    << cudaGetErrorString(cudaGetLastError()) << "\n" << std::endl;
+#endif
 }

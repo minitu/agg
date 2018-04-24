@@ -7,7 +7,7 @@
 #include "params.h"
 #include "comp.h"
 
-extern void runCuda(Comp*, Params*, cudaStream_t, cublasHandle_t);
+extern void runCuda(Comp*, Params*, cudaStream_t, cublasHandle_t, int);
 
 int main(int argc, char** argv)
 {
@@ -22,12 +22,13 @@ int main(int argc, char** argv)
 
 #if DEBUG
   // Print MPI ranks
-  std::cout << "[MPI] rank " << rank << "/" << n_ranks << " created" <<
-    std::endl;
+  if (rank == 0)
+    std::cout << "Total number of MPI ranks = " << n_ranks << "\n";
+  std::cout << "[MPI " << rank << "] created" << std::endl;
 #endif
 
   // Process parameters and create computation object
-  Params* params = new Params(argc, argv);
+  Params* params = new Params(argc, argv, rank);
   Comp* comp = new Comp(params, rank, n_ranks);
 
   // Create CUDA stream
@@ -44,20 +45,22 @@ int main(int argc, char** argv)
   // Randomize input values
   comp->randomInit();
 
+  // Start timer (only for communication and computation)
+  auto com_start = std::chrono::system_clock::now();
+
   // Perform communication and computation
   if (comp->type == CompType::DOT_GLOBAL) {
     if (!(comp->agg)) {
       // Offload each rank independently
-      runCuda(comp, params, stream, handle);
+      runCuda(comp, params, stream, handle, rank);
 
       // Reduce resulting values to get final value
       // FIXME MPI_FLOAT
       Real reduced;
       MPI_Reduce(comp->h_C, &reduced, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-#if DEBUG
       if (rank == 0)
-        std::cout << "Result: " << reduced << std::endl;
-#endif
+        std::cout << "Result: " << std::fixed << std::setprecision(2)
+          << reduced << std::endl;
     }
     else {
       // Gather input data
@@ -69,14 +72,23 @@ int main(int argc, char** argv)
 
       // Offload as one big kernel
       if (rank == 0) {
-        runCuda(comp, params, stream, handle);
+        runCuda(comp, params, stream, handle, rank);
 
-        std::cout << "Result: " << *(comp->h_GC) << std::endl;
+        std::cout << "Result: " << std::fixed << std::setprecision(2)
+          << *(comp->h_GC) << "\n" << std::endl;
       }
     }
   }
   else if (comp->type == CompType::DOT_LOCAL) {
     // TODO
+  }
+
+  // End timer
+  auto com_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> com_duration = com_end - com_start;
+
+  if (rank == 0) {
+    std::cout << "[Timer] Com: " << com_duration.count() << "s" << std::endl;
   }
 
 #if DEBUG
@@ -103,8 +115,10 @@ int main(int argc, char** argv)
   auto global_end = std::chrono::system_clock::now();
   std::chrono::duration<double> global_duration = global_end - global_start;
 
-  std::cout << "\n[Timers]\n" << "Global: " << global_duration.count() << "s\n"
-    << std::endl;
+  if (rank == 0) {
+    std::cout << "[Timer] Global: " << global_duration.count() << "s\n"
+      << std::endl;
+  }
 
   return 0;
 }
