@@ -16,20 +16,17 @@ int main(int argc, char** argv)
 
   // Initialize MPI
   MPI_Init(&argc, &argv);
-  int rank, tag = 99, n_ranks;
+  int rank, n_ranks;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &n_ranks);
-
-#if DEBUG
-  // Print MPI ranks
-  if (rank == 0)
-    std::cout << "Total number of MPI ranks = " << n_ranks << "\n";
-  std::cout << "[MPI " << rank << "] created" << std::endl;
-#endif
 
   // Process parameters and create computation object
   Params* params = new Params(argc, argv, rank);
   Comp* comp = new Comp(params, rank, n_ranks);
+
+  // Allocate memory and randomize inputs
+  comp->malloc();
+  comp->randomInit();
 
   // Create CUDA stream
   cudaStream_t stream;
@@ -41,9 +38,6 @@ int main(int argc, char** argv)
     cublasCreate(&handle);
     cublasSetStream(handle, stream);
   }
-
-  // Randomize input values
-  comp->randomInit();
 
   // Timers for MPI communication and CUDA computation
   std::chrono::time_point<std::chrono::system_clock> mpi_start;
@@ -115,6 +109,9 @@ int main(int argc, char** argv)
 
   // Destroy CUDA stream
   cudaStreamDestroy(stream);
+
+  // Deallocate memory
+  comp->free();
 
   // Destroy objects
   delete params;

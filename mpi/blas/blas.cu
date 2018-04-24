@@ -3,20 +3,20 @@
 #include "params.h"
 #include "comp.h"
 
-#define N_PER_THREAD 16
+#define N_PER_THREAD 32
 #define BLOCK_SIZE 16
 #define A_MAT(x,y,N) A[x * N + y]
 #define B_MAT(x,y,N) B[x * N + y]
 #define C_MAT(x,y,N) C[x * N + y]
 
-__global__ void dotp(Real* A, Real* B, Real* C, int N) {
-  int gi = (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x + threadIdx.x;
-  int first_idx = gi * N_PER_THREAD;
-  int last_idx = (gi + 1) * N_PER_THREAD - 1;
+__global__ void dotp(Real* A, Real* B, Real* C, Integer N) {
+  Integer gi = (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x + threadIdx.x;
+  Integer first_idx = gi * N_PER_THREAD;
+  Integer last_idx = (gi + 1) * N_PER_THREAD - 1;
 
   if (first_idx < N) {
     Real sum = (Real)0.0;
-    for (int i = first_idx; i <= last_idx && i < N; i++) {
+    for (Integer i = first_idx; i <= last_idx && i < N; i++) {
       sum += A[i] * B[i];
     }
 
@@ -24,6 +24,7 @@ __global__ void dotp(Real* A, Real* B, Real* C, int N) {
   }
 }
 
+// TODO change int to Integer
 __global__ void matmul(Real* A, Real* B, Real* C, int N) {
   int ti = threadIdx.x;
   int tj = threadIdx.y;
@@ -66,8 +67,8 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream,
   Real* d_A;
   Real* d_B;
   Real* d_C;
-  int N;
-  size_t size;
+  Integer N;
+  Integer size;
 
   // Unpack Comp
   if (!comp->agg) {
@@ -157,8 +158,7 @@ void runCuda(Comp* comp, Params* params, cudaStream_t stream,
 
   cudaStreamSynchronize(stream);
 
-#if DEBUG
-  std::cout << "[MPI " << rank << "] CUDA: "
-    << cudaGetErrorString(cudaGetLastError()) << "\n" << std::endl;
-#endif
+  if (cudaPeekAtLastError() != cudaSuccess)
+    std::cerr << "[MPI " << rank << "] CUDA error: "
+      << cudaGetErrorString(cudaGetLastError()) << std::endl;
 }

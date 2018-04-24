@@ -8,8 +8,8 @@
 
 struct Comp {
   CompType type;
-  int N;
-  size_t mem_size;
+  Integer N;
+  Integer mem_size;
   bool agg;
   int rank;
   int n_ranks;
@@ -35,7 +35,9 @@ struct Comp {
     agg = p->agg;
     rank = rank_;
     n_ranks = n_ranks_;
+  }
 
+  void malloc() {
     switch (type) {
       case CompType::DOT_GLOBAL:
       case CompType::DOT_LOCAL:
@@ -87,6 +89,10 @@ struct Comp {
       default:
         break;
     }
+
+    if (cudaPeekAtLastError() != cudaSuccess)
+      std::cerr << "[MPI " << rank << "] Memory allocation failure"
+        << std::endl;
   }
 
   void randomInit() {
@@ -108,9 +114,9 @@ struct Comp {
     }
   }
 
-  void randomize(Real* data, int n) {
+  void randomize(Real* data, Integer n) {
     srand(time(NULL));
-    for (int i = 0; i < n; i++) {
+    for (Integer i = 0; i < n; i++) {
       data[i] = 1.0f;
       //data[i] = rand() / (Real)RAND_MAX;
     }
@@ -120,15 +126,15 @@ struct Comp {
     switch (type) {
       case CompType::DOT_GLOBAL:
       case CompType::DOT_LOCAL:
-        for (int i = 0; i < N; i++) {
+        for (Integer i = 0; i < N; i++) {
           std::cout << std::fixed << std::setprecision(2) << data[i] << " ";
         }
         std::cout << std::endl;
         break;
       case CompType::GEMM_GLOBAL:
       case CompType::GEMM_LOCAL:
-        for (int i = 0; i < N; i++) {
-          for (int j = 0; j < N; j++) {
+        for (Integer i = 0; i < N; i++) {
+          for (Integer j = 0; j < N; j++) {
             std::cout << std::fixed << std::setprecision(2) << data[i * N + j]
               << " ";
           }
@@ -152,7 +158,7 @@ struct Comp {
     }
   }
 
-  ~Comp() {
+  void free() {
     switch (type) {
       case CompType::DOT_GLOBAL:
       case CompType::DOT_LOCAL:

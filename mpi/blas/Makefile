@@ -1,6 +1,6 @@
 # For OLCF Titan
 CFLAGS=-std=c++11
-CC=CC $(CFLAGS)
+CC=CC $(CFLAGS) -Wall
 NVCC=nvcc $(CFLAGS)
 TARGET=blas
 OBJS=$(TARGET).o $(TARGET)cu.o params.o
